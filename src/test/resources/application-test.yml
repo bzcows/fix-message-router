@@ -1,0 +1,16 @@
+spring:
+  main:
+    banner-mode: off
+
+camel:
+  springboot:
+    main-run-controller: false
+
+kafka:
+  brokers: localhost:9092
+  groupId: test-group
+
+logging:
+  level:
+    root: WARN
+    com.fix.gateway: DEBUG

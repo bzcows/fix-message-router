@@ -1,0 +1,25 @@
+{
+  "routes": [
+    {
+      "routeId": "FIX4.4:BANZ->GTWY",
+      "senderCompId": "GTWY",
+      "targetCompId": "BANZ",
+      "type": "INPUT",
+      "inputTopic": "fix.GTWY.BANZ.input",
+      "destinations": [
+        "netty:tcp://localhost:9999?textline=true&sync=true",
+        "kafka:external-fix-messages?brokers=localhost:9092 &groupId=fix-router-input-group"
+      ]
+    },
+    {
+      "routeId": "FIX4.4:GTWY->EXEC",
+      "senderCompId": "GTWY",
+      "targetCompId": "EXEC",
+      "type": "OUTPUT",
+      "outputTopic": "fix.GTWY.EXEC.output",
+      "destinations": [
+        "netty:tcp://localhost:7777?sync=true&textline=true&disconnect=true"
+      ]
+    }
+  ]
+}

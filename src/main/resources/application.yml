@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: fix-message-router
+
+  jackson:
+    date-format: com.fasterxml.jackson.databind.util.ISO8601DateFormat
+    default-property-inclusion: NON_NULL
+
+# Camel configuration
+camel:
+  springboot:
+    name: FixMessageRouter
+    main-run-controller: true
+  component:
+    kafka:
+      brokers: localhost:9092
+    netty:
+      sync: true  # Set to true for sync mode to prevent channel pool race conditions
+      requestTimeout: 2000  # 2 second timeout to fail fast
+      connectTimeout: 2000  # 2 second connection timeout to fail fast
+      producerPoolEnabled: false  # Disable producer pool to avoid double-return issues
+      reuseChannel: false  # Don't reuse channels to avoid stale connections
+      disconnect: true  # Disconnect after each request
+    jms:
+      connection-factory: # Will be configured via ActiveMQ
+        broker-url: tcp://localhost:61616
+
+# Kafka configuration
+kafka:
+  brokers: localhost:9092
+  # Base groupId pattern for consumer groups (actual groupId will be route-specific: fix-router-{routeId})
+  groupId: fix-router-group
+  autoOffsetReset: earliest
+  # Note: Topics are now defined per-route in routing-config.json
+  # Format: fix.{senderCompId}.{targetCompId}.input and fix.{senderCompId}.{targetCompId}.output
+  topics:
+    dead-letter: fix-dead-letter
+
+
+
+# Logging
+logging:
+  level:
+    com.fix.gateway: DEBUG
+    org.apache.camel: INFO
+    org.springframework: INFO
+  file:
+    name: ./logs/fix-router.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# FIX Routing configuration
+fix:
+  routing:
+    mode: enhanced  # Options: "legacy" (toD-based) or "enhanced" (individual routes with separate exception handling)
+
+# Server
+server:
+  port: 8111
+  servlet:
+    context-path: /api
