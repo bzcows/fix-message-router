@@ -114,6 +114,11 @@ public class EnhancedRoutingConfigurationLoader {
                 log.info("      Max retries: {}", dest.getMaxRetries());
                 log.info("      Timeout: {}ms", dest.getTimeout());
                 log.info("      Dead letter: {}", dest.getDeadLetterTopic(route.getRouteId()));
+                if (dest.getMsgTypes() != null && !dest.getMsgTypes().isEmpty()) {
+                    log.info("      Msg types: {}", dest.getMsgTypes());
+                } else {
+                    log.info("      Msg types: [ALL] (no filtering)");
+                }
             });
             
             if (route.getErrorHandling() != null) {

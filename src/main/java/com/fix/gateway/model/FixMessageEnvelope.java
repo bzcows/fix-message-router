@@ -34,6 +34,19 @@ public class FixMessageEnvelope {
     @JsonProperty("rawMessage")
     private String rawMessage;
 
+    @JsonProperty("errorMessage")
+    private String errorMessage;
+    
+    @JsonProperty("errorType")
+    private String errorType;
+    
+    @JsonProperty("errorTimestamp")
+    private Instant errorTimestamp;
+    
+    @JsonProperty("errorRouteId")
+    private String errorRouteId;
+
+/*
     public static FixMessageEnvelope create(String rawMessage, String sessionId, String senderCompId, String targetCompId) {
         return FixMessageEnvelope.builder()
                 .rawMessage(rawMessage)
@@ -51,4 +64,5 @@ public class FixMessageEnvelope {
                 .targetCompId(sessionConfig.getTargetCompId())
                 .build();
     }
+*/
 }

@@ -342,6 +342,9 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
             String messageBody = exchange.getIn().getBody(String.class);
             List<DestinationConfig> destinationConfigs = route.getDestinationConfigs();
             
+            // Get msgType from headers (set by FixMessageProcessor)
+            String msgType = exchange.getIn().getHeader("msgType", String.class);
+            
             // Log message body details for debugging SOH issue
             if (messageBody != null && !messageBody.isEmpty()) {
                 int length = messageBody.length();
@@ -359,8 +362,32 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
                 System.out.println("[DEBUG] EnhancedDestinationRouter - Total SOH characters: " + sohCount);
             }
             
+            // Log msgType for debugging
+            System.out.println("[DEBUG] EnhancedDestinationRouter - msgType: " + msgType);
+            System.out.println("[DEBUG] EnhancedDestinationRouter - Total destinations: " + destinationConfigs.size());
+            
+            // Log all headers for debugging
+            System.out.println("[DEBUG] EnhancedDestinationRouter - All headers: " + exchange.getIn().getHeaders());
+            
             for (int i = 0; i < destinationConfigs.size(); i++) {
+                DestinationConfig destConfig = destinationConfigs.get(i);
+                System.out.println("[DEBUG] EnhancedDestinationRouter - Processing destination " + i +
+                                 " (uri: " + destConfig.getUri() + ")");
+                System.out.println("[DEBUG] EnhancedDestinationRouter - Destination msgTypes: " + destConfig.getMsgTypes());
+                
+                // Check if destination should receive this message type
+                boolean matches = destConfig.matchesMsgType(msgType);
+                System.out.println("[DEBUG] EnhancedDestinationRouter - matchesMsgType(" + msgType + ") = " + matches);
+                
+                if (!matches) {
+                    System.out.println("[DEBUG] EnhancedDestinationRouter - Skipping destination " + i +
+                                     " (uri: " + destConfig.getUri() + ") because msgType " + msgType +
+                                     " not in allowed list: " + destConfig.getMsgTypes());
+                    continue;
+                }
+                
                 String destRouteId = route.getRouteId() + "_DEST_" + i;
+                System.out.println("[DEBUG] EnhancedDestinationRouter - Sending to destination route: " + destRouteId);
                 
                 // Create new exchange for each destination
                 Exchange destExchange = exchange.getContext()
@@ -374,10 +401,9 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
                 destExchange.getProperties().putAll(exchange.getProperties());
                 destExchange.setProperty("originalExchange", exchange);
                 destExchange.setProperty("destinationIndex", i);
-                destExchange.setProperty("destinationConfig", destinationConfigs.get(i));
+                destExchange.setProperty("destinationConfig", destConfig);
                 
                 // Apply destination-specific parallel processing
-                DestinationConfig destConfig = destinationConfigs.get(i);
                 if (destConfig.isParallelProcessing()) {
                     // Send asynchronously
                     exchange.getContext().createProducerTemplate()

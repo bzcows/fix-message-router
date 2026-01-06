@@ -30,6 +30,11 @@ public class FixMessageProcessor implements Processor {
         String senderCompId = envelope.getSenderCompId();
         String targetCompId = envelope.getTargetCompId();
         String sessionId = envelope.getSessionId();
+        String msgType = envelope.getMsgType();
+        
+        // Debug log the msgType
+        System.out.println("[DEBUG] FixMessageProcessor - Extracted msgType from envelope: " + msgType);
+        System.out.println("[DEBUG] FixMessageProcessor - Envelope toString: " + envelope.toString());
         
         // Get routeId from headers (set by FixMessageRouter)
         String routeId = exchange.getIn().getHeader("routeId", String.class);
@@ -63,10 +68,17 @@ public class FixMessageProcessor implements Processor {
             }
         }
         
+        // Log destinations found
+        System.out.println("[DEBUG] FixMessageProcessor - Found " + destinations.size() + " destinations for route " + routeId);
+        if (!destinations.isEmpty()) {
+            System.out.println("[DEBUG] FixMessageProcessor - Destinations: " + destinations);
+        }
+        
         // Set headers for routing
         exchange.getIn().setHeader("sessionId", sessionId);
         exchange.getIn().setHeader("senderCompId", senderCompId);
         exchange.getIn().setHeader("targetCompId", targetCompId);
+        exchange.getIn().setHeader("msgType", msgType);
         exchange.getIn().setHeader("destinations", destinations);
         exchange.getIn().setHeader("routeType", routeType != null ? routeType : RouteType.INPUT);
         

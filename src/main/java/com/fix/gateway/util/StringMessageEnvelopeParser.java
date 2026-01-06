@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 public class StringMessageEnvelopeParser {
     
     private static final Pattern ENVELOPE_PATTERN = Pattern.compile(
-        "MessageEnvelope\\(sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=(.+)\\)"
+        "MessageEnvelope\\(sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=([^,]+),\\s*errorMessage=(.+)\\)"
     );
     
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_INSTANT;
@@ -56,6 +56,7 @@ public class StringMessageEnvelopeParser {
                     .sessionId(sessionId)
                     .senderCompId(senderCompId)
                     .targetCompId(targetCompId)
+                    .msgType(msgType)
                     .createdTimestamp(timestamp)
                     .rawMessage(rawMessage)
                     .build();

@@ -30,6 +30,7 @@
           "deadLetterTopic": "dead-letter-netty-9999",
           "parallelProcessing": true,
           "stopOnException": false,
+          "msgTypes": ["D", "G", "8"],
           "endpointParameters": {
             "textline": "true",
             "sync": "true",
@@ -97,6 +98,7 @@
           "deadLetterTopic": "dead-letter-kafka-external",
           "parallelProcessing": true,
           "stopOnException": true,
+          "msgTypes": ["*"],
           "endpointParameters": {
             "brokers": "localhost:9092",
             "groupId": "fix-router-input-group",

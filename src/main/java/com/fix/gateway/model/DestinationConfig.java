@@ -2,7 +2,9 @@ package com.fix.gateway.model;
 
 import lombok.Data;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * Configuration for a single destination with individual exception handling
@@ -51,6 +53,13 @@ public class DestinationConfig {
      * Whether to stop processing other destinations if this one fails
      */
     private boolean stopOnException = false;
+    
+    /**
+     * List of FIX message types (msgType field values) that should be routed to this destination.
+     * If null or empty, all messages are routed (backward compatibility).
+     * Special value "*" means all message types.
+     */
+    private List<String> msgTypes = new ArrayList<>();
     
     /**
      * Builds the complete URI with all parameters
@@ -119,5 +128,25 @@ public class DestinationConfig {
         }
         
         return uri.replaceAll("[^a-zA-Z0-9]", "-");
+    }
+    
+    /**
+     * Checks if this destination should receive a message with the given msgType.
+     * @param msgType The FIX message type (e.g., "D", "8", "AE")
+     * @return true if the destination should receive the message, false otherwise
+     */
+    public boolean matchesMsgType(String msgType) {
+        if (msgTypes == null || msgTypes.isEmpty()) {
+            // Backward compatibility: no filtering configured
+            return true;
+        }
+        
+        // Check for wildcard "*" meaning all message types
+        if (msgTypes.contains("*")) {
+            return true;
+        }
+        
+        // Case-sensitive exact match (FIX msgTypes are typically uppercase)
+        return msgTypes.contains(msgType);
     }
 }
