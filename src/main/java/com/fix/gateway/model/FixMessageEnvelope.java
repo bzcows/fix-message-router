@@ -26,6 +26,9 @@ public class FixMessageEnvelope {
     
     @JsonProperty("msgType")
     private String msgType;
+
+    @JsonProperty("clOrdID")
+    private String clOrdID;
     
     @JsonProperty("createdTimestamp")
     @Builder.Default

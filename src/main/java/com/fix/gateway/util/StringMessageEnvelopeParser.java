@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 public class StringMessageEnvelopeParser {
     
     private static final Pattern ENVELOPE_PATTERN = Pattern.compile(
-        "MessageEnvelope\\(sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=([^,]+),\\s*errorMessage=(.+)\\)"
+        "MessageEnvelope\\(sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*clOrdID=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=([^,]+),\\s*errorMessage=(.+)\\)"
     );
     
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_INSTANT;
@@ -31,8 +31,9 @@ public class StringMessageEnvelopeParser {
             String senderCompId = matcher.group(2).trim();
             String targetCompId = matcher.group(3).trim();
             String msgType = matcher.group(4).trim();
-            String createdTimestampStr = matcher.group(5).trim();
-            String rawMessage = matcher.group(6);
+            String clOrdID= matcher.group(5).trim();
+            String createdTimestampStr = matcher.group(6).trim();
+            String rawMessage = matcher.group(7);
             // Don't trim the raw message - preserve trailing SOH character
             // Log raw message length and last character for debugging
             if (rawMessage != null && !rawMessage.isEmpty()) {

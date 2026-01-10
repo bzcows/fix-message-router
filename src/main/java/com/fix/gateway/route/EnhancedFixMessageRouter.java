@@ -229,16 +229,12 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
                         
                         // Debug logging for raw message analysis
                         if (rawMessage != null) {
-                            System.out.println("[DEBUG] EnhancedFixMessageRouter OUTPUT - Raw message length: " + rawMessage.length());
-                            System.out.println("[DEBUG] EnhancedFixMessageRouter OUTPUT - Raw message first 100 chars: " +
-                                (rawMessage.length() > 100 ? rawMessage.substring(0, 100) : rawMessage));
-                            // Check for escape sequences
+                            
                             if (rawMessage.contains("\\u0001")) {
                                 System.out.println("[DEBUG] EnhancedFixMessageRouter OUTPUT - Message contains \\u0001 escape sequence");
                             }
                             // Check for actual SOH character
                             boolean hasActualSOH = rawMessage.indexOf('\u0001') >= 0;
-                            System.out.println("[DEBUG] EnhancedFixMessageRouter OUTPUT - Message contains actual SOH char: " + hasActualSOH);
                             
                             // Process the raw message to handle escape sequences
                             String processedMessage = FixMessageUtils.processRawMessage(rawMessage);
