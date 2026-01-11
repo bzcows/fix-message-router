@@ -5,6 +5,7 @@ import com.fix.gateway.model.*;
 import com.fix.gateway.processor.FixMessageProcessor;
 import com.fix.gateway.processor.MessageEnvelopeFormatProcessor;
 import com.fix.gateway.util.FixMessageUtils;
+import com.fix.gateway.util.MvelExpressionEvaluator;
 import com.fix.gateway.util.StringMessageEnvelopeParser;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
@@ -17,6 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Enhanced FIX message router that creates individual routes for each destination
@@ -210,6 +212,8 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
             String senderCompId = route.getSenderCompId();
             String targetCompId = route.getTargetCompId();
             String outputTopic = route.getOutputTopic();
+            PartitionStrategy partitionStrategy = route.getPartitionStrategy();
+            String partitionExpression = route.getPartitionExpression();
             
             // For each destination in the OUTPUT route, create a listening endpoint
             List<DestinationConfig> destinationConfigs = route.getDestinationConfigs();
@@ -244,11 +248,25 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
                             }
                         }
                         
+                        // Parse FIX tags and extract common fields
+                        Map<Integer, String> parsedTags = MvelExpressionEvaluator.parseFixTags(rawMessage);
+                        
+                        // Extract common fields for easy access
+                        String symbol = parsedTags.get(55);
+                        String side = parsedTags.get(54);
+                        String orderQty = parsedTags.get(38);
+                        String price = parsedTags.get(44);
+                        
                         FixMessageEnvelope envelope = FixMessageEnvelope.builder()
                                 .sessionId(properSessionId)
                                 .senderCompId(senderCompId)
                                 .targetCompId(targetCompId)
                                 .rawMessage(rawMessage)
+                                .symbol(symbol)
+                                .side(side)
+                                .orderQty(orderQty)
+                                .price(price)
+                                .parsedTags(parsedTags)
                                 .build();
                         exchange.getIn().setBody(envelope);
                         
@@ -259,10 +277,41 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
                         exchange.getIn().setHeader("targetCompId", targetCompId);
                         exchange.getIn().setHeader("routeId", routeId);
                         exchange.getIn().setHeader("outputTopic", outputTopic);
+                        exchange.getIn().setHeader("partitionStrategy", partitionStrategy);
+                        exchange.getIn().setHeader("partitionExpression", partitionExpression);
+                        
+                        // Apply content-based routing if configured
+                        if (partitionStrategy != PartitionStrategy.NONE && partitionExpression != null && !partitionExpression.trim().isEmpty()) {
+                            // Use already parsed tags from envelope
+                            Object partitionResult = MvelExpressionEvaluator.evaluatePartitionExpression(
+                                partitionExpression, envelope, envelope.getParsedTags());
+                            
+                            if (partitionResult != null) {
+                                if (partitionStrategy == PartitionStrategy.KEY) {
+                                    // Set partition key (will be used as Kafka message key)
+                                    exchange.getIn().setHeader("kafka.KEY", partitionResult.toString());
+                                    System.out.println("[DEBUG] EnhancedFixMessageRouter OUTPUT - Setting partition key: " + partitionResult);
+                                } else if (partitionStrategy == PartitionStrategy.EXPR) {
+                                    // Set partition number (must be integer)
+                                    try {
+                                        int partitionNum;
+                                        if (partitionResult instanceof Number) {
+                                            partitionNum = ((Number) partitionResult).intValue();
+                                        } else {
+                                            partitionNum = Integer.parseInt(partitionResult.toString());
+                                        }
+                                        exchange.getIn().setHeader("kafka.PARTITION", partitionNum);
+                                        System.out.println("[DEBUG] EnhancedFixMessageRouter OUTPUT - Setting partition number: " + partitionNum);
+                                    } catch (NumberFormatException e) {
+                                        System.out.println("[ERROR] EnhancedFixMessageRouter OUTPUT - Invalid partition number from expression: " + partitionResult);
+                                    }
+                                }
+                            }
+                        }
                     })
                     .marshal(envelopeFormat)
                     .log("Enhanced OUTPUT route " + routeId + ": Forwarding envelope to output topic " + outputTopic)
-                    .to(buildKafkaProducerUri(outputTopic))
+                    .to(buildKafkaProducerUri(outputTopic, route.getPartitionStrategy()))
                     .transform().constant("OK");
             }
         }
@@ -304,6 +353,15 @@ public class EnhancedFixMessageRouter extends RouteBuilder {
             + "&keySerializer=org.apache.kafka.common.serialization.StringSerializer"
             + "&valueSerializer=org.apache.kafka.common.serialization.StringSerializer"
             + "&requestTimeoutMs=10000";
+    }
+    
+    /**
+     * Builds Kafka producer URI with partition strategy support.
+     * The actual partition/key will be set via headers (kafka.KEY or kafka.PARTITION).
+     */
+    private String buildKafkaProducerUri(String topic, PartitionStrategy partitionStrategy) {
+        // Base URI is the same, partition/key will be determined by headers
+        return buildKafkaProducerUri(topic);
     }
     
     /**

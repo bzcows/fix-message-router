@@ -30,6 +30,19 @@ public class EnhancedRouteMapping extends RoutingConfig.RouteMapping {
     private boolean enhancedRouting = true;
     
     /**
+     * Partition strategy for content-based routing (only applicable for OUTPUT routes)
+     * Defaults to NONE (no content-based routing)
+     */
+    private PartitionStrategy partitionStrategy = PartitionStrategy.NONE;
+    
+    /**
+     * MVEL expression for partition determination
+     * For KEY strategy: expression should evaluate to the key value
+     * For EXPR strategy: expression should evaluate to partition number (integer)
+     */
+    private String partitionExpression;
+    
+    /**
      * Gets the destination configurations, falling back to simple URI strings
      * if destinationConfigs is empty but destinations is populated.
      * This provides backward compatibility.

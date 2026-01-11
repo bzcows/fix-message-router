@@ -118,6 +118,8 @@
       "type": "OUTPUT",
       "outputTopic": "fix.GTWY.EXEC.output",
       "enhancedRouting": true,
+      "partitionStrategy": "KEY",
+      "partitionExpression": "Symbol",
       "destinationConfigs": [
         {
           "uri": "netty:tcp://localhost:7777",
@@ -142,6 +144,8 @@
       "type": "OUTPUT",
       "outputTopic": "fix.GTWY.BANZ.output",
       "enhancedRouting": true,
+      "partitionStrategy": "EXPR",
+      "partitionExpression": "if (MsgType == \"D\") {\n  return 1;\n} else if (MsgType == \"8\") {\n  return 0;\n} else {\n  return 2;\n}",
       "destinationConfigs": [
         {
           "uri": "netty:tcp://localhost:7778",

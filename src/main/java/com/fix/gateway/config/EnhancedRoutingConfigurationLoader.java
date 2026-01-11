@@ -1,7 +1,9 @@
 package com.fix.gateway.config;
 
 import com.fix.gateway.model.EnhancedRoutingConfig;
+import com.fix.gateway.model.EnhancedRouteMapping;
 import com.fix.gateway.model.RoutingConfig;
+import com.fix.gateway.util.MvelExpressionEvaluator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,7 +67,36 @@ public class EnhancedRoutingConfigurationLoader {
         try (InputStream inputStream = enhancedRoutingConfigResource.getInputStream()) {
             EnhancedRoutingConfig config = objectMapper.readValue(inputStream, EnhancedRoutingConfig.class);
             log.info("Loaded {} enhanced route mappings", config.getRoutes().size());
+            
+            // Pre-compile MVEL expressions for all routes
+            preCompileMvelExpressions(config);
+            
             return config;
+        }
+    }
+    
+    /**
+     * Pre-compiles MVEL expressions for all routes to warm up the cache.
+     * This ensures expressions are compiled once at startup rather than on first message.
+     */
+    private void preCompileMvelExpressions(EnhancedRoutingConfig config) {
+        int compiledCount = 0;
+        for (EnhancedRouteMapping route : config.getRoutes()) {
+            if (route.getPartitionExpression() != null && !route.getPartitionExpression().trim().isEmpty()) {
+                try {
+                    // This will compile and cache the expression
+                    MvelExpressionEvaluator.preCompileExpression(route.getPartitionExpression());
+                    compiledCount++;
+                    log.debug("Pre-compiled partition expression for route {}: {}",
+                             route.getRouteId(), route.getPartitionExpression());
+                } catch (Exception e) {
+                    log.warn("Failed to pre-compile partition expression for route {}: {}",
+                            route.getRouteId(), e.getMessage());
+                }
+            }
+        }
+        if (compiledCount > 0) {
+            log.info("Pre-compiled {} MVEL partition expressions", compiledCount);
         }
     }
     
@@ -85,9 +116,12 @@ public class EnhancedRoutingConfigurationLoader {
             // Set enhanced routing enabled by default for converted routes
             enhancedConfig.getRoutes().forEach(route -> {
                 route.setEnhancedRouting(true);
-                log.info("Converted route {} to enhanced format with {} destination(s)", 
+                log.info("Converted route {} to enhanced format with {} destination(s)",
                     route.getRouteId(), route.getDestinationConfigs().size());
             });
+            
+            // Pre-compile MVEL expressions for converted routes too
+            preCompileMvelExpressions(enhancedConfig);
             
             return enhancedConfig;
         }
@@ -105,6 +139,10 @@ public class EnhancedRoutingConfigurationLoader {
             log.info("Route: {}", route.getRouteId());
             log.info("  Type: {}", route.getType());
             log.info("  Enhanced routing: {}", route.isEnhancedRouting());
+            log.info("  Partition strategy: {}", route.getPartitionStrategy());
+            if (route.getPartitionExpression() != null && !route.getPartitionExpression().isEmpty()) {
+                log.info("  Partition expression: {}", route.getPartitionExpression());
+            }
             log.info("  Input topic: {}", route.getInputTopic());
             log.info("  Output topic: {}", route.getOutputTopic());
             log.info("  Destinations: {}", route.getDestinationConfigs().size());
