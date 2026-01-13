@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 public class StringMessageEnvelopeParser {
     
     private static final Pattern ENVELOPE_PATTERN = Pattern.compile(
-        "MessageEnvelope\\(sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*clOrdID=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=([^,]+),\\s*errorMessage=(.+)\\)"
+        "MessageEnvelope\\(messageId=([^,]+),\\s*sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*clOrdID=([^,]+),\\s*msgSeqNum=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=([^,]+),\\s*messageFingerprint=([^,]+)(?:,.+)?\\)"
     );
     
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_INSTANT;
@@ -27,13 +27,17 @@ public class StringMessageEnvelopeParser {
         }
         
         try {
-            String sessionId = matcher.group(1).trim();
-            String senderCompId = matcher.group(2).trim();
-            String targetCompId = matcher.group(3).trim();
-            String msgType = matcher.group(4).trim();
-            String clOrdID= matcher.group(5).trim();
-            String createdTimestampStr = matcher.group(6).trim();
-            String rawMessage = matcher.group(7);
+            String messageId = matcher.group(1).trim();
+            String sessionId = matcher.group(2).trim();
+            String senderCompId = matcher.group(3).trim();
+            String targetCompId = matcher.group(4).trim();
+            String msgType = matcher.group(5).trim();
+            String clOrdID = matcher.group(6).trim();
+            String msgSeqNum = matcher.group(7).trim();
+            String createdTimestampStr = matcher.group(8).trim();
+            String rawMessage = matcher.group(9);
+            String messageFingerprint = matcher.group(10).trim();
+            
             // Don't trim the raw message - preserve trailing SOH character
             // Log raw message length and last character for debugging
             if (rawMessage != null && !rawMessage.isEmpty()) {
@@ -58,6 +62,7 @@ public class StringMessageEnvelopeParser {
                     .senderCompId(senderCompId)
                     .targetCompId(targetCompId)
                     .msgType(msgType)
+                    .clOrdID(clOrdID)
                     .createdTimestamp(timestamp)
                     .rawMessage(rawMessage)
                     .build();
