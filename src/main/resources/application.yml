@@ -14,6 +14,12 @@ camel:
   component:
     kafka:
       brokers: localhost:9092
+      # Configuration for single-record processing with manual commits
+      maxPollRecords: 1
+      autoCommitEnable: false
+      allowManualCommit: true
+      breakOnFirstError: false  # Continue on error for transient network issues
+      sessionTimeoutMs: 30000
     netty:
       sync: true  # Set to true for sync mode to prevent channel pool race conditions
       requestTimeout: 2000  # 2 second timeout to fail fast
@@ -31,6 +37,11 @@ kafka:
   # Base groupId pattern for consumer groups (actual groupId will be route-specific: fix-router-{routeId})
   groupId: fix-router-group
   autoOffsetReset: earliest
+  # Single record processing with manual commits for guaranteed ordering
+  consumer:
+    maxPollRecords: 1
+    enableAutoCommit: false
+    sessionTimeoutMs: 30000
   # Note: Topics are now defined per-route in routing-config.json
   # Format: fix.{senderCompId}.{targetCompId}.input and fix.{senderCompId}.{targetCompId}.output
   topics:
@@ -54,6 +65,11 @@ logging:
 fix:
   routing:
     mode: enhanced  # Options: "legacy" (toD-based) or "enhanced" (individual routes with separate exception handling)
+    # Ordered processing configuration
+    ordered:
+      enabled: true  # Enable ordered processing with manual commits
+      maxPollRecords: 1  # Process one record at a time
+      manualCommit: true  # Use manual offset commits
 
 # Server
 server:
