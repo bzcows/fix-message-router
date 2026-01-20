@@ -8,30 +8,40 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 /**
  * Routing configuration loader that loads enhanced routing configuration.
  * This is the single configuration loader for the application.
+ *
+ * Supports external configuration via:
+ * 1. Property: fix.routing.config.path (in application.yml)
+ * 2. Environment variable: FIX_ROUTING_CONFIG_PATH
+ * 3. System property: -Dfix.routing.config.path
+ * 4. Fallback: classpath:routing-config.json
  */
 @Configuration
 @Slf4j
 public class RoutingConfigurationLoader {
 
-    @Value("classpath:routing-config.json")
-    private Resource routingConfigResource;
+    @Value("${fix.routing.config.path:#{null}}")
+    private String externalConfigPath;
 
     /**
      * Primary bean for routing configuration.
      */
     @Bean
     public RoutingConfig routingConfig(ObjectMapper objectMapper) throws IOException {
-        log.info("Loading routing configuration from: {}", routingConfigResource.getURI());
+        Resource configResource = resolveConfigResource();
+        log.info("Loading routing configuration from: {}", configResource.getURI());
         
-        try (InputStream inputStream = routingConfigResource.getInputStream()) {
+        try (InputStream inputStream = configResource.getInputStream()) {
             RoutingConfig config = objectMapper.readValue(inputStream, RoutingConfig.class);
             log.info("Loaded {} route mappings", config.getRoutes().size());
             
@@ -41,9 +51,62 @@ public class RoutingConfigurationLoader {
             logConfiguration(config);
             return config;
         } catch (IOException e) {
-            log.error("Failed to load routing configuration from {}", routingConfigResource.getFilename(), e);
+            log.error("Failed to load routing configuration from {}", configResource.getFilename(), e);
             throw e;
         }
+    }
+    
+    /**
+     * Resolves the configuration resource using the following priority:
+     * 1. External file path from property/environment variable
+     * 2. Classpath resource (fallback)
+     */
+    private Resource resolveConfigResource() {
+        // Check for external configuration path
+        String configPath = getConfigPath();
+        
+        if (configPath != null && !configPath.trim().isEmpty()) {
+            File externalFile = new File(configPath);
+            if (externalFile.exists() && externalFile.isFile()) {
+                log.info("Using external routing configuration file: {}", externalFile.getAbsolutePath());
+                return new FileSystemResource(externalFile);
+            } else {
+                log.warn("External configuration file not found at: {}. Falling back to classpath.", configPath);
+            }
+        } else {
+            log.info("No external configuration path specified. Using default classpath resource.");
+        }
+        
+        // Fallback to classpath resource
+        log.info("Loading routing configuration from classpath: routing-config.json");
+        return new ClassPathResource("routing-config.json");
+    }
+    
+    /**
+     * Gets the configuration path from multiple sources in order of priority:
+     * 1. Spring property (fix.routing.config.path)
+     * 2. Environment variable (FIX_ROUTING_CONFIG_PATH)
+     * 3. System property (fix.routing.config.path)
+     */
+    private String getConfigPath() {
+        // Already injected via @Value, check if it's set
+        if (externalConfigPath != null && !externalConfigPath.trim().isEmpty()) {
+            return externalConfigPath.trim();
+        }
+        
+        // Check environment variable
+        String envPath = System.getenv("FIX_ROUTING_CONFIG_PATH");
+        if (envPath != null && !envPath.trim().isEmpty()) {
+            return envPath.trim();
+        }
+        
+        // Check system property
+        String sysPath = System.getProperty("fix.routing.config.path");
+        if (sysPath != null && !sysPath.trim().isEmpty()) {
+            return sysPath.trim();
+        }
+        
+        return null;
     }
     
     /**

@@ -26,23 +26,87 @@ The application reads FIX messages from a Kafka topic `fix-inbound-topic`, extra
 
 ### Configuration
 
-Routing configuration is defined in `src/main/resources/routing-config.json`:
+#### Internal Configuration (Default)
+Routing configuration is defined in `src/main/resources/routing-config.json` and packaged inside the JAR.
 
+#### External Configuration (Recommended for Production)
+The application supports external routing configuration files for running multiple instances with different configurations. The system checks for external configuration in the following priority order:
+
+1. **Spring Property**: `fix.routing.config.path` in `application.yml`
+2. **Environment Variable**: `FIX_ROUTING_CONFIG_PATH`
+3. **System Property**: `-Dfix.routing.config.path`
+4. **Fallback**: Classpath resource `routing-config.json`
+
+##### Example Configuration File
 ```json
 {
+  "enableEnhancedRouting": true,
+  "globalErrorHandling": {
+    "defaultMaxRedeliveries": 1,
+    "defaultRedeliveryDelay": 500,
+    "logAllErrors": true,
+    "defaultDeadLetterTopic": "enhanced-fix-dead-letter",
+    "useTransactions": false
+  },
   "routes": [
     {
-      "routeId": "Route1",
-      "senderCompId": "GATEWAY",
-      "targetCompId": "BANZAI",
-      "destinations": [
-        "netty://localhost:9999",
-        "jms://localhost:61616/queue.fix.outbound",
-        "kafka://localhost:9092?topic=fix-outbound-topic"
+      "routeId": "FIX4.4:BANZ->GTWY",
+      "senderCompId": "GTWY",
+      "targetCompId": "BANZ",
+      "type": "INPUT",
+      "inputTopic": "fix.GTWY.BANZ.input",
+      "enhancedRouting": true,
+      "errorHandling": {
+        "maxRedeliveries": 1,
+        "redeliveryDelay": 500,
+        "useDeadLetterChannel": true,
+        "deadLetterChannelUri": "direct:enhancedDeadLetterChannel"
+      },
+      "destinationConfigs": [
+        {
+          "uri": "netty:tcp://localhost:9999",
+          "maxRetries": 5,
+          "retryDelay": 2000,
+          "timeout": 10000,
+          "deadLetterTopic": "dead-letter-netty-9999",
+          "parallelProcessing": true,
+          "stopOnException": false,
+          "msgTypes": ["D", "G", "8"]
+        }
       ]
     }
   ]
 }
+```
+
+##### Running with External Configuration
+
+**Using application.yml:**
+```yaml
+fix:
+  routing:
+    config:
+      path: /opt/fmc-router/config/routing-config.json
+```
+
+**Using Environment Variable:**
+```bash
+export FIX_ROUTING_CONFIG_PATH=/opt/fmc-router/config/routing-config.json
+java -jar target/fix-message-router-1.0.0.jar
+```
+
+**Using System Property:**
+```bash
+java -Dfix.routing.config.path=/opt/fmc-router/config/routing-config.json -jar target/fix-message-router-1.0.0.jar
+```
+
+**Multiple Instance Example:**
+```bash
+# Instance 1 with config for region A
+java -Dfix.routing.config.path=/config/region-a/routing-config.json -jar fix-message-router.jar
+
+# Instance 2 with config for region B
+java -Dfix.routing.config.path=/config/region-b/routing-config.json -jar fix-message-router.jar
 ```
 
 ### Message Format
@@ -91,8 +155,11 @@ public class FixMessageEnvelope {
 # Build the application
 mvn clean package
 
-# Run the application
+# Run the application (with default classpath configuration)
 java -jar target/fix-message-router-1.0.0.jar
+
+# Run with external configuration
+java -Dfix.routing.config.path=/path/to/routing-config.json -jar target/fix-message-router-1.0.0.jar
 
 # Or run with Maven
 mvn spring-boot:run
@@ -109,6 +176,12 @@ kafka:
   
 activemq:
   broker-url: tcp://localhost:61616
+
+# External routing configuration (optional)
+fix:
+  routing:
+    config:
+      path: /opt/fmc-router/config/routing-config.json
 ```
 
 ## Project Structure

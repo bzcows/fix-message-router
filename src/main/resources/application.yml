@@ -73,6 +73,12 @@ fix:
       enabled: true  # Enable ordered processing with manual commits
       maxPollRecords: 1  # Process one record at a time
       manualCommit: true  # Use manual offset commits
+    
+    # External routing configuration file path
+    # Priority: 1. This property, 2. FIX_ROUTING_CONFIG_PATH env var, 3. -Dfix.routing.config.path system property
+    # If not specified, falls back to classpath:routing-config.json
+    config:
+      path: # Example: /opt/fmc-router/config/routing-config.json
 
 # Server
 server:
