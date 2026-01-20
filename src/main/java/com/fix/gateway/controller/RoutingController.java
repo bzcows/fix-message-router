@@ -1,6 +1,6 @@
 package com.fix.gateway.controller;
 
-import com.fix.gateway.model.RoutingConfig;
+import com.fix.gateway.model.RouteMapping;
 import com.fix.gateway.service.RoutingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,7 @@ public class RoutingController {
     private RoutingService routingService;
 
     @GetMapping("/routes")
-    public ResponseEntity<List<RoutingConfig.RouteMapping>> getAllRoutes() {
+    public ResponseEntity<List<RouteMapping>> getAllRoutes() {
         return ResponseEntity.ok(routingService.getAllRoutes());
     }
 
@@ -26,7 +26,7 @@ public class RoutingController {
             @RequestParam String senderCompId,
             @RequestParam String targetCompId) {
         
-        List<RoutingConfig.RouteMapping> routes = routingService.findMatchingRoutes(senderCompId, targetCompId);
+        List<RouteMapping> routes = routingService.findMatchingRoutes(senderCompId, targetCompId);
         List<String> destinations = routingService.getDestinationsFor(senderCompId, targetCompId);
         
         return ResponseEntity.ok(Map.of(
@@ -49,7 +49,7 @@ public class RoutingController {
 
     @GetMapping("/config")
     public ResponseEntity<Map<String, Object>> config() {
-        List<RoutingConfig.RouteMapping> routes = routingService.getAllRoutes();
+        List<RouteMapping> routes = routingService.getAllRoutes();
         return ResponseEntity.ok(Map.of(
             "totalRoutes", routes.size(),
             "routes", routes

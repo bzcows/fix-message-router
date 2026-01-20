@@ -1,20 +1,24 @@
 package com.fix.gateway.processor;
 
 import com.fix.gateway.model.FixMessageEnvelope;
+import com.fix.gateway.model.RouteMapping;
 import com.fix.gateway.model.RouteType;
 import com.fix.gateway.model.RoutingConfig;
 import com.fix.gateway.util.FixMessageUtils;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
 public class FixMessageProcessor implements Processor {
+
+    private static final Logger log = LoggerFactory.getLogger(FixMessageProcessor.class);
 
     @Autowired
     private RoutingConfig routingConfig;
@@ -32,10 +36,6 @@ public class FixMessageProcessor implements Processor {
         String sessionId = envelope.getSessionId();
         String msgType = envelope.getMsgType();
         
-        // Debug log the msgType
-        System.out.println("[DEBUG] FixMessageProcessor - Extracted msgType from envelope: " + msgType);
-        System.out.println("[DEBUG] FixMessageProcessor - Envelope toString: " + envelope.toString());
-        
         // Get routeId from headers (set by FixMessageRouter)
         String routeId = exchange.getIn().getHeader("routeId", String.class);
         
@@ -49,17 +49,18 @@ public class FixMessageProcessor implements Processor {
             destinations = routingConfig.getRoutes().stream()
                 .filter(route -> route.getRouteId().equals(routeId))
                 .filter(route -> route.getType() == routeType)
-                .flatMap(route -> route.getDestinations().stream())
+                .flatMap(route -> route.getDestinationConfigs().stream())
+                .map(dest -> dest.buildCompleteUri())
                 .collect(Collectors.toList());
         } else {
-            // Fallback: legacy mode - find matching routes by sender/target IDs
-            // This supports backward compatibility if routeId is not set
+            // Fallback: find matching routes by sender/target IDs
             // Default to INPUT routes for backward compatibility
             RouteType fallbackType = routeType != null ? routeType : RouteType.INPUT;
             destinations = routingConfig.getRoutes().stream()
                 .filter(route -> route.getType() == fallbackType)
                 .filter(route -> matchesRoute(route, senderCompId, targetCompId))
-                .flatMap(route -> route.getDestinations().stream())
+                .flatMap(route -> route.getDestinationConfigs().stream())
+                .map(dest -> dest.buildCompleteUri())
                 .collect(Collectors.toList());
             
             if (!destinations.isEmpty()) {
@@ -69,9 +70,9 @@ public class FixMessageProcessor implements Processor {
         }
         
         // Log destinations found
-        System.out.println("[DEBUG] FixMessageProcessor - Found " + destinations.size() + " destinations for route " + routeId);
+        log.debug("Found {} destinations for route {}", destinations.size(), routeId);
         if (!destinations.isEmpty()) {
-            System.out.println("[DEBUG] FixMessageProcessor - Destinations: " + destinations);
+            log.debug("Destinations: {}", destinations);
         }
         
         // Set headers for routing
@@ -89,19 +90,9 @@ public class FixMessageProcessor implements Processor {
         if (rawMessage != null && !rawMessage.isEmpty()) {
             rawMessage = FixMessageUtils.ensureTrailingSOH(rawMessage);
             
-            // Log raw message details for debugging SOH issue
-            int length = rawMessage.length();
-            char lastChar = rawMessage.charAt(length - 1);
-            System.out.println("[DEBUG] FixMessageProcessor - Raw message length: " + length +
-                             ", last char code: " + (int)lastChar +
-                             " (0x" + Integer.toHexString(lastChar) + ")");
-            // Also check for SOH characters in the message
-            int sohCount = FixMessageUtils.countSOH(rawMessage);
-            System.out.println("[DEBUG] FixMessageProcessor - Total SOH characters in message: " + sohCount);
-            
             // Validate FIX message structure
             if (!FixMessageUtils.isValidFixMessage(rawMessage)) {
-                System.out.println("[WARN] FixMessageProcessor - Message may not be valid FIX format");
+                log.warn("Message may not be valid FIX format");
             }
         }
         
@@ -116,7 +107,7 @@ public class FixMessageProcessor implements Processor {
         }
     }
     
-    private boolean matchesRoute(RoutingConfig.RouteMapping route, String senderCompId, String targetCompId) {
+    private boolean matchesRoute(RouteMapping route, String senderCompId, String targetCompId) {
         boolean senderMatch = route.getSenderCompId().equalsIgnoreCase(senderCompId);
         boolean targetMatch = route.getTargetCompId().equalsIgnoreCase(targetCompId);
         return senderMatch && targetMatch;

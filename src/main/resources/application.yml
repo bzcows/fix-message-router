@@ -55,6 +55,10 @@ logging:
     com.fix.gateway: DEBUG
     org.apache.camel: INFO
     org.springframework: INFO
+    # Suppress verbose Kafka configuration logs
+    org.apache.kafka.clients.producer.ProducerConfig: WARN
+    org.apache.kafka.clients.consumer.ConsumerConfig: WARN
+    org.apache.kafka.common.config.AbstractConfig: WARN
   file:
     name: ./logs/fix-router.log
   pattern:
@@ -64,7 +68,6 @@ logging:
 # FIX Routing configuration
 fix:
   routing:
-    mode: enhanced  # Options: "legacy" (toD-based) or "enhanced" (individual routes with separate exception handling)
     # Ordered processing configuration
     ordered:
       enabled: true  # Enable ordered processing with manual commits

@@ -1,6 +1,8 @@
 package com.fix.gateway.util;
 
 import com.fix.gateway.model.FixMessageEnvelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -8,6 +10,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class StringMessageEnvelopeParser {
+    
+    private static final Logger log = LoggerFactory.getLogger(StringMessageEnvelopeParser.class);
     
     private static final Pattern ENVELOPE_PATTERN = Pattern.compile(
         "MessageEnvelope\\(messageId=([^,]+),\\s*sessionId=([^,]+),\\s*senderCompId=([^,]+),\\s*targetCompId=([^,]+),\\s*msgType=([^,]+),\\s*clOrdID=([^,]+),\\s*msgSeqNum=([^,]+),\\s*createdTimestamp=([^,]+),\\s*rawMessage=([^,]+),\\s*messageFingerprint=([^,]+)(?:,.+)?\\)"
@@ -43,9 +47,8 @@ public class StringMessageEnvelopeParser {
             if (rawMessage != null && !rawMessage.isEmpty()) {
                 int length = rawMessage.length();
                 char lastChar = rawMessage.charAt(length - 1);
-                System.out.println("[DEBUG] StringMessageEnvelopeParser - Raw message length: " + length +
-                                 ", last char code: " + (int)lastChar +
-                                 " (0x" + Integer.toHexString(lastChar) + ")");
+                log.debug("StringMessageEnvelopeParser - Raw message length: {}, last char code: {} (0x{})",
+                         length, (int)lastChar, Integer.toHexString(lastChar));
             }
             
             // Parse timestamp

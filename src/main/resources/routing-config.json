@@ -1,4 +1,12 @@
 {
+  "enableEnhancedRouting": true,
+  "globalErrorHandling": {
+    "defaultMaxRedeliveries": 1,
+    "defaultRedeliveryDelay": 500,
+    "logAllErrors": true,
+    "defaultDeadLetterTopic": "enhanced-fix-dead-letter",
+    "useTransactions": false
+  },
   "routes": [
     {
       "routeId": "FIX4.4:BANZ->GTWY",
@@ -6,19 +14,152 @@
       "targetCompId": "BANZ",
       "type": "INPUT",
       "inputTopic": "fix.GTWY.BANZ.input",
-      "destinations": [
-        "netty:tcp://localhost:9999?textline=true&sync=true",
-        "kafka:external-fix-messages?brokers=localhost:9092 &groupId=fix-router-input-group"
+      "enhancedRouting": true,
+      "errorHandling": {
+        "maxRedeliveries": 1,
+        "redeliveryDelay": 500,
+        "useDeadLetterChannel": true,
+        "deadLetterChannelUri": "direct:enhancedDeadLetterChannel"
+      },
+      "destinationConfigs": [
+        {
+          "uri": "netty:tcp://localhost:9999",
+          "maxRetries": 5,
+          "retryDelay": 2000,
+          "timeout": 10000,
+          "deadLetterTopic": "dead-letter-netty-9999",
+          "parallelProcessing": true,
+          "stopOnException": false,
+          "msgTypes": ["D", "G", "8"],
+          "endpointParameters": {
+            "textline": "true",
+            "sync": "true",
+            "connectTimeout": "5000",
+            "requestTimeout": "5000",
+            "disconnect": "true",
+            "reuseChannel": "false"
+          }
+        },
+        {
+          "uri": "kafka:external-fix-messages",
+          "maxRetries": 3,
+          "retryDelay": 1000,
+          "timeout": 5000,
+          "deadLetterTopic": "dead-letter-kafka-external",
+          "parallelProcessing": true,
+          "stopOnException": true,
+          "endpointParameters": {
+            "brokers": "localhost:9092",
+            "groupId": "fix-router-input-group",
+            "keySerializer": "org.apache.kafka.common.serialization.StringSerializer",
+            "valueSerializer": "org.apache.kafka.common.serialization.StringSerializer",
+            "requestTimeoutMs": "10000"
+          }
+        }
       ]
     },
+
+    {
+      "routeId": "FIX4.4:EXEC->GTWY",
+      "senderCompId": "GTWY",
+      "targetCompId": "EXEC",
+      "type": "INPUT",
+      "inputTopic": "fix.GTWY.EXEC.input",
+      "enhancedRouting": true,
+      "errorHandling": {
+        "maxRedeliveries": 1,
+        "redeliveryDelay": 500,
+        "useDeadLetterChannel": true,
+        "deadLetterChannelUri": "direct:enhancedDeadLetterChannel"
+      },
+      "destinationConfigs": [
+        {
+          "uri": "netty:tcp://localhost:9998",
+          "maxRetries": 5,
+          "retryDelay": 2000,
+          "timeout": 10000,
+          "deadLetterTopic": "dead-letter-netty-9998",
+          "parallelProcessing": true,
+          "stopOnException": false,
+          "endpointParameters": {
+            "textline": "true",
+            "sync": "true",
+            "connectTimeout": "5000",
+            "requestTimeout": "5000",
+            "disconnect": "true",
+            "reuseChannel": "false"
+          }
+        },
+        {
+          "uri": "kafka:external-fix-messages",
+          "maxRetries": 3,
+          "retryDelay": 1000,
+          "timeout": 5000,
+          "deadLetterTopic": "dead-letter-kafka-external",
+          "parallelProcessing": true,
+          "stopOnException": true,
+          "msgTypes": ["*"],
+          "endpointParameters": {
+            "brokers": "localhost:9092",
+            "groupId": "fix-router-input-group",
+            "keySerializer": "org.apache.kafka.common.serialization.StringSerializer",
+            "valueSerializer": "org.apache.kafka.common.serialization.StringSerializer",
+            "requestTimeoutMs": "10000"
+          }
+        }
+      ]
+    },
+
+
     {
       "routeId": "FIX4.4:GTWY->EXEC",
       "senderCompId": "GTWY",
       "targetCompId": "EXEC",
       "type": "OUTPUT",
       "outputTopic": "fix.GTWY.EXEC.output",
-      "destinations": [
-        "netty:tcp://localhost:7777?sync=true&textline=true&disconnect=true"
+      "enhancedRouting": true,
+      "partitionStrategy": "KEY",
+      "partitionExpression": "Symbol",
+      "destinationConfigs": [
+        {
+          "uri": "netty:tcp://localhost:7777",
+          "maxRetries": 3,
+          "retryDelay": 1000,
+          "timeout": 8000,
+          "deadLetterTopic": "dead-letter-netty-7777",
+          "endpointParameters": {
+            "sync": "true",
+            "textline": "true",
+            "disconnect": "true",
+            "connectTimeout": "3000"
+          }
+        }
+      ]
+    },
+
+    {
+      "routeId": "FIX4.4:GTWY->BANZ",
+      "senderCompId": "GTWY",
+      "targetCompId": "BANZ",
+      "type": "OUTPUT",
+      "outputTopic": "fix.GTWY.BANZ.output",
+      "enhancedRouting": true,
+      "partitionStrategy": "EXPR",
+      "partitionExpression": "if (MsgType == \"D\") {\n  return 1;\n} else if (MsgType == \"8\") {\n  return 0;\n} else {\n  return 2;\n}",
+      "destinationConfigs": [
+        {
+          "uri": "netty:tcp://localhost:7778",
+          "maxRetries": 3,
+          "retryDelay": 1000,
+          "timeout": 8000,
+          "deadLetterTopic": "dead-letter-netty-7778",
+          "endpointParameters": {
+            "sync": "true",
+            "textline": "true",
+            "disconnect": "true",
+            "connectTimeout": "3000"
+          }
+        }
       ]
     }
   ]
